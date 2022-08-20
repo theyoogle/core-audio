@@ -19,22 +19,22 @@ void checkError(OSStatus err) {
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
         
-        AudioStreamBasicDescription desc;
-        memset(&desc, 0, sizeof(desc));         // initialize with 0
-        
-        desc.mSampleRate = SAMPLE_RATE;
-        desc.mFormatID = kAudioFormatLinearPCM;
-        desc.mFormatFlags = kAudioFormatFlagIsBigEndian | kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked;           // AIFF file Big Endian
-        desc.mBitsPerChannel = 16;
-        desc.mChannelsPerFrame = 1;
-        desc.mFramesPerPacket = 1;
-        desc.mBytesPerFrame = 2;            // equal to Bytes per packet for LPCM
-        desc.mBytesPerPacket = 2;           // equal to Bytes per Frame for LPCM
-        
         double hz = 440.0;
         NSString *fileName = [NSString stringWithFormat:FILENAME_FORMAT, hz];
         NSString *filePath = [[[NSFileManager defaultManager] currentDirectoryPath] stringByAppendingPathComponent:fileName];
         NSURL *fileURL = [NSURL fileURLWithPath:filePath];
+        
+        AudioStreamBasicDescription desc;
+        memset(&desc, 0, sizeof(desc));         // initialize with 0
+        
+        desc.mSampleRate = SAMPLE_RATE;         // number of samples per channel per second
+        desc.mFormatID = kAudioFormatLinearPCM;
+        desc.mFormatFlags = kAudioFormatFlagIsBigEndian | kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked;           // AIFF file Big Endian
+        desc.mBitsPerChannel = 16;
+        desc.mChannelsPerFrame = 1;
+        desc.mFramesPerPacket = 1;          // always 1 for uncompressed formats
+        desc.mBytesPerFrame = 2;            // equal to Bytes per packet for LPCM
+        desc.mBytesPerPacket = 2;           // equal to Bytes per Frame for LPCM
         
         AudioFileID audioFile;
         checkError(AudioFileCreateWithURL((__bridge CFURLRef) fileURL,
@@ -59,6 +59,7 @@ int main(int argc, const char * argv[]) {
                     sample = CFSwapInt16HostToBig(SHRT_MIN);
                 }
                 
+                // write to audioFile
                 checkError(AudioFileWriteBytes(audioFile,
                                                false,
                                                sampleCount * 2,
@@ -69,7 +70,7 @@ int main(int argc, const char * argv[]) {
         }
         
         checkError(AudioFileClose(audioFile));
-        NSLog(@"wrote %ld samples", sampleCount);
+        NSLog(@"wrote %ld samples at %@", sampleCount, fileURL);
         
     }
     return 0;
