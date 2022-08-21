@@ -67,6 +67,61 @@ void createGraph(Data *data) {
                                &data->filePlayerAU),
                "AUGraphNodeInfo failed");
     
+#ifdef PART2
+    // --------------------------------------------------------
+    // reverb effect
+    AudioComponentDescription reverbDesc = {0};
+    reverbDesc.componentType = kAudioUnitType_Effect;
+    reverbDesc.componentSubType = kAudioUnitSubType_MatrixReverb;
+    reverbDesc.componentManufacturer = kAudioUnitManufacturer_Apple;
+    // add node to graph
+    AUNode reverbNode;
+    checkError(AUGraphAddNode(data->graph,
+                              &reverbDesc,
+                              &reverbNode),
+               "AUGraphAddNode[reverbNode] failed");
+    
+    // connect filePlayerNode to reverbNode
+    checkError(AUGraphConnectNodeInput(data->graph,
+                                       filePlayerNode,
+                                       0,
+                                       reverbNode,
+                                       0),
+               "AUGraphConnectNodeInput[filePlayer->reverb] failed");
+    
+    // connect reverbNode to outputNode
+    checkError(AUGraphConnectNodeInput(data->graph,
+                                       reverbNode,
+                                       0,
+                                       outputNode,
+                                       0),
+               "AUGraphConnectNodeInput[reverb->output] failed");
+    
+    // reverb node audio unit
+    AudioUnit reverbAU;
+    checkError(AUGraphNodeInfo(data->graph,
+                               reverbNode,
+                               NULL,
+                               &reverbAU),
+               "AUGraphNodeInfo[reverbAU] failed");
+    
+    // initialize graph
+    // resource allocation
+    checkError(AUGraphInitialize(data->graph), "AUGraphInitialize failed");
+    
+    // set reverbAU roomType
+    // AudioUnitSetProperty comes after graph initialize
+    UInt32 roomType = kReverbRoomType_LargeHall;
+    checkError(AudioUnitSetProperty(reverbAU,
+                                    kAudioUnitProperty_ReverbRoomType,
+                                    kAudioUnitScope_Global,
+                                    0,
+                                    &roomType,
+                                    sizeof(UInt32)),
+               "AudioUnitSetProperty[ReverbRoomType] failed");
+    // --------------------------------------------------------
+#else
+    // --------------------------------------------------------
     // connect filePlayerNode to outputNode
     checkError(AUGraphConnectNodeInput(data->graph,
                                        filePlayerNode,  // source
@@ -78,6 +133,11 @@ void createGraph(Data *data) {
     // initialize graph
     // resource allocation
     checkError(AUGraphInitialize(data->graph), "AUGraphInitialize failed");
+    // --------------------------------------------------------
+#endif
+    
+    // display graph
+    CAShow(data->graph);
 }
 
 // --------------------------------------------------------
