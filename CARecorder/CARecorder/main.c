@@ -13,7 +13,7 @@
 #define BUFFER_COUNTS 3
 
 //record callback function
-static void audioQueueInputCallback(void *inUserData,
+static void AQInputCallback(void *inUserData,
                                     AudioQueueRef inQueue,
                                     AudioQueueBufferRef inBuffer,
                                     const AudioTimeStamp *inStartTime,
@@ -70,7 +70,7 @@ int main(int argc, const char * argv[]) {
     // Audio queue for input
     AudioQueueRef queue = {0};
     checkError(AudioQueueNewInput(&recordFormat,
-                                  audioQueueInputCallback,
+                                  AQInputCallback,
                                   &recorder,
                                   NULL,
                                   NULL,
