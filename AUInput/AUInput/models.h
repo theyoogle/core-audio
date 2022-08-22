@@ -18,7 +18,9 @@ typedef struct Model {
     AudioUnit                   outputAU;
     
 #ifdef PART2
-    //23
+    AudioStreamBasicDescription fileInputFormat;
+    AudioFileID                 inputFile;
+    AudioUnit                   filePlayerAU;
 #endif
     
     AudioBufferList             *inputBuffer;

@@ -11,6 +11,7 @@
 		5A519EDA28B3956200731770 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A519ED928B3956200731770 /* AudioToolbox.framework */; };
 		5A519EE228B39C5500731770 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A519EE128B39C5500731770 /* CoreAudio.framework */; };
 		5A519EE328B3A93700731770 /* CARingBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5A519EDD28B395FB00731770 /* CARingBuffer.cpp */; };
+		5A519EE828B3CC2900731770 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A519EE728B3CC2900731770 /* CoreFoundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -36,6 +37,7 @@
 		5A519EDF28B39C3E00731770 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
 		5A519EE128B39C5500731770 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
 		5A519EE428B3B67A00731770 /* AUInput.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AUInput.entitlements; sourceTree = "<group>"; };
+		5A519EE728B3CC2900731770 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,6 +47,7 @@
 			files = (
 				5A519EE228B39C5500731770 /* CoreAudio.framework in Frameworks */,
 				5A519EDA28B3956200731770 /* AudioToolbox.framework in Frameworks */,
+				5A519EE828B3CC2900731770 /* CoreFoundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,6 +86,7 @@
 		5A519ED828B3956100731770 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				5A519EE728B3CC2900731770 /* CoreFoundation.framework */,
 				5A519EE128B39C5500731770 /* CoreAudio.framework */,
 				5A519EDF28B39C3E00731770 /* AudioUnit.framework */,
 				5A519ED928B3956200731770 /* AudioToolbox.framework */,

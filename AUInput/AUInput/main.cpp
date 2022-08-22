@@ -7,9 +7,10 @@
 
 #include <AudioToolbox/AudioToolbox.h>
 
-#include "models.h"
+#define PART2
+#define fileLocation CFSTR("/Users/yoogle/Music/track.mp3")
 
-// #define PART2
+#include "models.h"
 
 OSStatus InputRenderProc(void                       *inRefCon,
                          AudioUnitRenderActionFlags *ioActionFlags,
@@ -91,25 +92,55 @@ int main(int argc, const char * argv[]) {
     // create input unit
     createInputUnit(&model);
     
+    
+#ifdef PART2
+    CFURLRef fileURL = CFURLCreateWithFileSystemPath(kCFAllocatorDefault,
+                                                     fileLocation,
+                                                     kCFURLPOSIXPathStyle,
+                                                     false);
+    
+    // open the input audio file
+    checkError(AudioFileOpenURL(fileURL,
+                                kAudioFileReadPermission,
+                                0,
+                                &model.inputFile),
+               "AudioFileOpenURL failed");
+    CFRelease(fileURL);
+    
+    // get audio data format from file
+    UInt32 propSize = sizeof(model.fileInputFormat);
+    checkError(AudioFileGetProperty(model.inputFile,
+                                    kAudioFilePropertyDataFormat,
+                                    &propSize,
+                                    &model.fileInputFormat),
+               "AudioFileGetProperty failed");
+#endif
+    
     // create graph with output unit
     createGraph(&model);
     
 #ifdef PART2
-    // 28
+    // configure file player
+    Float64 fileDuration = prepareFileAU(&model);
 #endif
     
     // start playing
     checkError(AudioOutputUnitStart(model.inputAU), "AudioOutputUnitStart failed");
     checkError(AUGraphStart(model.graph), "AUGraphStart failed");
     
-    // and wait
-    printf("Capturing, press <return> to stop:\n");
-    getchar();
+#ifdef PART2
+    // sleep until file is finished
+    usleep((int) (fileDuration * 1000.0 * 1000.0));
+#endif
     
 cleanup:
     AUGraphStop(model.graph);
     AUGraphUninitialize(model.graph);
     AUGraphClose(model.graph);
+    
+#ifdef PART2
+    AudioFileClose(model.inputFile);
+#endif
 
     return 0;
 }

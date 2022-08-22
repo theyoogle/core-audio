@@ -208,10 +208,115 @@ void createGraph(Model *model) {
     checkError(AUGraphAddNode(model->graph,
                               &outputDesc,
                               &outputNode),
-               "AUGraphAddNode[DefaultOutput] failed");
+               "AUGraphAddNode[outputNode] failed");
     
 #ifdef PART2
 
+    // mixer
+    AudioComponentDescription mixerDesc = {0};
+    mixerDesc.componentType = kAudioUnitType_Mixer;
+    mixerDesc.componentSubType = kAudioUnitSubType_StereoMixer;
+    mixerDesc.componentManufacturer = kAudioUnitManufacturer_Apple;
+    // add node to graph
+    AUNode mixerNode;
+    checkError(AUGraphAddNode(model->graph,
+                              &mixerDesc,
+                              &mixerNode),
+               "AUGraphAddNode[mixerNode] failed");
+    
+    // audio file player
+    AudioComponentDescription filePlayerDesc = {0};
+    filePlayerDesc.componentType = kAudioUnitType_Generator;
+    filePlayerDesc.componentSubType = kAudioUnitSubType_AudioFilePlayer;
+    filePlayerDesc.componentManufacturer = kAudioUnitManufacturer_Apple;
+    // add node to graph
+    AUNode filePlayerNode;
+    checkError(AUGraphAddNode(model->graph,
+                              &filePlayerDesc,
+                              &filePlayerNode),
+               "AUGraphAddNode[filePlayerNode] failed");
+    
+    // Opening the graph opens all contained audio units but does not allocate any resources yet
+    checkError(AUGraphOpen(model->graph), "AUGraphOpen failed");
+    
+    // outputNode audioUnit reference
+    checkError(AUGraphNodeInfo(model->graph,
+                               outputNode,
+                               NULL,
+                               &model->outputAU),
+               "AUGraphNodeInfo[outputNode] failed");
+    
+    // mixerNode audioUnit reference
+    AudioUnit mixerAU;
+    checkError(AUGraphNodeInfo(model->graph,
+                               mixerNode,
+                               NULL,
+                               &mixerAU),
+               "AUGraphNodeInfo[mixerNode] failed");
+    
+    // filePlayerNode audioUnit reference
+    checkError(AUGraphNodeInfo(model->graph,
+                               filePlayerNode,
+                               NULL,
+                               &model->filePlayerAU),
+               "AUGraphNodeInfo[filePlayeNode] failed");
+    
+    // Set the stream format on the output unit's input scope
+    UInt32 propertySize = sizeof(AudioStreamBasicDescription);
+    checkError(AudioUnitSetProperty(model->outputAU,
+                                    kAudioUnitProperty_StreamFormat,
+                                    kAudioUnitScope_Input,
+                                    0,
+                                    &model->streamFormat,
+                                    propertySize),
+               "couldn't set streamFormat on output unit");
+    
+    // Set the stream format on the mixer unit's input scope bus 0
+    checkError(AudioUnitSetProperty(mixerAU,
+                                    kAudioUnitProperty_StreamFormat,
+                                    kAudioUnitScope_Input,
+                                    0,
+                                    &model->streamFormat,
+                                    propertySize),
+               "couldn't set streamFormat on mixer unit bus 0");
+    
+    // Set the stream format on the mixer unit's input scope bus 1
+    checkError(AudioUnitSetProperty(mixerAU,
+                                    kAudioUnitProperty_StreamFormat,
+                                    kAudioUnitScope_Input,
+                                    1,
+                                    &model->streamFormat,
+                                    propertySize),
+               "couldn't set streamFormat on mixer unit bus 1");
+    
+    // connect mixerNode to outputNode
+    checkError(AUGraphConnectNodeInput(model->graph,
+                                       mixerNode,
+                                       0,
+                                       outputNode,
+                                       0),
+               "mixerNode out(0) -> outputNode (0) failed");
+    
+    // connect filePlayerNode to mixerNode
+    checkError(AUGraphConnectNodeInput(model->graph,
+                                       filePlayerNode,
+                                       0,
+                                       mixerNode,
+                                       1),
+               "filePlayerNode out(0) -> mixerNode in(1) failed");
+    
+    AURenderCallbackStruct callbackStruct;
+    callbackStruct.inputProc = GraphRenderProc;
+    callbackStruct.inputProcRefCon = model;
+    
+    checkError(AudioUnitSetProperty(mixerAU,
+                                    kAudioUnitProperty_SetRenderCallback,
+                                    kAudioUnitScope_Global,
+                                    0,
+                                    &callbackStruct,
+                                    sizeof(callbackStruct)),
+               "AudioUnitSetProperty[SetRenderCallback mixerAU] failed");
+    
 #else
     
     // Opening the graph opens all contained audio units but does not allocate any resources yet
@@ -222,7 +327,7 @@ void createGraph(Model *model) {
                                outputNode,
                                NULL,
                                &model->outputAU),
-               "AUGraphNodeInfo failed");
+               "AUGraphNodeInfo[outputNode] failed");
     
     // Set the stream format on the output unit's input scope
     UInt32 propertySize = sizeof(AudioStreamBasicDescription);
@@ -244,11 +349,69 @@ void createGraph(Model *model) {
                                     0,
                                     &callbackStruct,
                                     sizeof(callbackStruct)),
-               "AudioUnitSetProperty[SetRenderCallback] failed");
+               "AudioUnitSetProperty[SetRenderCallback outputAU] failed");
 #endif
     
     // initialize graph - causes resource allocation
     checkError(AUGraphInitialize(model->graph), "AUGraphInitialize failed");
     
     model->firstOutputSampleTime = -1;
+}
+
+// --------------------------------------------------------
+Float64 prepareFileAU(Model *model) {
+    // load file
+    checkError(AudioUnitSetProperty(model->filePlayerAU,
+                                    kAudioUnitProperty_ScheduledFileIDs,
+                                    kAudioUnitScope_Global,                 // input, output, global
+                                    0,                                      // bus
+                                    &model->inputFile,
+                                    sizeof(model->inputFile)),
+               "AudioUnitSetProperty[ScheduledFileIDs] failed");
+    
+    UInt64 nPackets;
+    UInt32 propSize = sizeof(nPackets);
+    checkError(AudioFileGetProperty(model->inputFile,
+                                    kAudioFilePropertyAudioDataPacketCount,
+                                    &propSize,
+                                    &nPackets),
+               "AudioFileGetProperty[AudioDataPacketCount] failed");
+    
+    // play entire file
+    ScheduledAudioFileRegion region;
+    memset(&region.mTimeStamp, 0, sizeof(region.mTimeStamp));
+    region.mTimeStamp.mFlags = kAudioTimeStampSampleTimeValid;
+    region.mTimeStamp.mSampleTime = 0;
+    region.mCompletionProc = NULL;
+    region.mCompletionProcUserData = NULL;
+    region.mAudioFile = model->inputFile;
+    region.mLoopCount = 1;
+    region.mStartFrame = 0;
+    region.mFramesToPlay = nPackets * model->fileInputFormat.mFramesPerPacket;
+    
+    checkError(AudioUnitSetProperty(model->filePlayerAU,
+                                    kAudioUnitProperty_ScheduledFileRegion,
+                                    kAudioUnitScope_Global,
+                                    0,
+                                    &region,
+                                    sizeof(region)),
+               "AudioUnitSetProperty[ScheduledFileRegion] failed");
+    
+    // filePlayerAU start playing
+    // -1 sample time - next render cycle (asap)
+    AudioTimeStamp startTime;
+    memset(&startTime, 0, sizeof(startTime));
+    startTime.mFlags = kAudioTimeStampSampleTimeValid;
+    startTime.mSampleTime = -1;
+    
+    checkError(AudioUnitSetProperty(model->filePlayerAU,
+                                    kAudioUnitProperty_ScheduleStartTimeStamp,
+                                    kAudioUnitScope_Global,
+                                    0,
+                                    &startTime,
+                                    sizeof(startTime)),
+               "AudioUnitSetProperty[ScheduleStartTimeStamp] failed");
+    
+    // file duration
+    return (nPackets * model->fileInputFormat.mFramesPerPacket) / model->fileInputFormat.mSampleRate;
 }
