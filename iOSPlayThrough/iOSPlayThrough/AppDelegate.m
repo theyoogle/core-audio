@@ -37,6 +37,43 @@ static OSStatus InputModulatingRenderCallback(void                       *inRefC
                                ioData),
                "AudioUnitRender failed");
     
+    // --------------------
+    // Audio play through is done here!!
+    
+    // Now extra steps for effect processing
+    // --------------------
+    
+    // walk the samples
+    AudioSampleType sample = 0;
+    UInt32 bytesPerChannel = effectState->streamFormat.mBytesPerFrame / effectState->streamFormat.mChannelsPerFrame;
+    for (int bufIndex = 0; bufIndex < ioData->mNumberBuffers; bufIndex++) {
+        AudioBuffer buffer = ioData->mBuffers[bufIndex];
+        
+        int currentFrame = 0;
+        while (currentFrame < inNumberFrames) {
+            // copy sample to buffer, accross all channels
+            for (int currentChannel = 0; currentChannel < buffer.mNumberChannels; currentChannel++) {
+                
+                memcpy(&sample,
+                       buffer.mData + (currentFrame * effectState->streamFormat.mBytesPerFrame) + (currentChannel * bytesPerChannel),
+                       sizeof(AudioSampleType));
+                
+                float theta = effectState->phase * M_PI * 2;
+                sample = sin(theta) * sample;
+                
+                memcpy(buffer.mData + (currentFrame * effectState->streamFormat.mBytesPerFrame) + (currentChannel * bytesPerChannel),
+                       &sample,
+                       sizeof(AudioSampleType));
+                
+                effectState->phase += 1.0 / (effectState->streamFormat.mSampleRate / effectState->frequency);
+                if (effectState->phase > 1.0) {
+                    effectState->phase -= 1.0;
+                }
+            }
+            currentFrame++;
+        }
+    }
+    
     return noErr;
 }
 
